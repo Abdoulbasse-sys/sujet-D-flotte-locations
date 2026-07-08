@@ -1,0 +1,4 @@
+# Le projet n'utilise que la bibliothèque standard Python (sqlite3, json, csv,
+# logging, dataclasses, abc, enum). Ces dépendances sont pour le développement
+# (tests) uniquement.
+pytest>=8.0.0
