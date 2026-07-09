@@ -104,6 +104,14 @@ class VehiculeBase(ABC):
     def km_depuis_dernier_entretien(self) -> int:
         return self.kilometrage - self._km_au_dernier_entretien
 
+    def jours_depuis_dernier_entretien(self) -> int | None:
+        """Nombre de jours écoulés depuis le dernier entretien enregistré.
+        Retourne None si le véhicule n'a encore jamais eu d'entretien."""
+        if not self._historique_entretiens:
+            return None
+        derniere_date = self._historique_entretiens[-1].date_entretien
+        return (date.today() - derniere_date).days
+
     def rouler(self, km: int) -> None:
         """Incrémente le kilométrage du véhicule (utilisé lors d'un retour de location)."""
         if km < 0:
