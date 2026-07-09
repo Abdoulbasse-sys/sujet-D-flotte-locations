@@ -1,9 +1,9 @@
 # Contributions au projet
 
 ## Membres du groupe
-- Abdoul Basse — @A_COMPLETER_PSEUDO_GITHUB
-- Omar Ngalla Diagne — @A_COMPLETER_PSEUDO_GITHUB
-- Lamine Ekoye Diatta — @A_COMPLETER_PSEUDO_GITHUB
+- Abdoul Basse — Abdoulbasse-sys
+- Omar Ngalla Diagne — diagneomarngalla700-stack
+- Lamine Ekoye Diatta — ekoydiatta123-coder
 
 ## Répartition du travail
 
