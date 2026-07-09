@@ -49,24 +49,35 @@ def _dict_vers_vehicule(d: Dict[str, Any]) -> VehiculeBase:
     if type_v not in _CLASSES_VEHICULE:
         raise DonneesInvalidesError(f"Type de véhicule inconnu dans le JSON : {type_v}")
 
-    if type_v == "Voiture":
-        v = Voiture(d["immatriculation"], d["marque"], d["modele"],
-                    d["nb_places"], d["tarif_base"], d.get("kilometrage", 0))
-    elif type_v == "Utilitaire":
-        v = Utilitaire(d["immatriculation"], d["marque"], d["modele"],
-                       d["capacite_charge_kg"], d["tarif_base"], d.get("kilometrage", 0))
-    else:  # Moto
-        v = Moto(d["immatriculation"], d["marque"], d["modele"],
-                 d["cylindree_cc"], d["tarif_base"], d.get("kilometrage", 0))
+    try:
+        if type_v == "Voiture":
+            v = Voiture(d["immatriculation"], d["marque"], d["modele"],
+                        d["nb_places"], d["tarif_base"], d.get("kilometrage", 0))
+        elif type_v == "Utilitaire":
+            v = Utilitaire(d["immatriculation"], d["marque"], d["modele"],
+                           d["capacite_charge_kg"], d["tarif_base"], d.get("kilometrage", 0))
+        else:  # Moto
+            v = Moto(d["immatriculation"], d["marque"], d["modele"],
+                     d["cylindree_cc"], d["tarif_base"], d.get("kilometrage", 0))
+    except KeyError as exc:
+        raise DonneesInvalidesError(
+            f"Champ manquant pour reconstruire un véhicule de type {type_v} : {exc}"
+        ) from exc
 
-    v.statut = StatutVehicule(d.get("statut", StatutVehicule.DISPONIBLE.value))
+    try:
+        v.statut = StatutVehicule(d.get("statut", StatutVehicule.DISPONIBLE.value))
+    except ValueError as exc:
+        raise DonneesInvalidesError(f"Statut inconnu dans le JSON : {d.get('statut')}") from exc
+
     return v
 
 
 def sauvegarder_flotte_json(flotte: Flotte, chemin: str) -> None:
     """Exporte l'état complet de la flotte (tous les véhicules) en JSON."""
+    path = Path(chemin)
+    path.parent.mkdir(parents=True, exist_ok=True)
     donnees = {"nom_flotte": flotte.nom, "vehicules": [_vehicule_vers_dict(v) for v in flotte.vehicules]}
-    with open(chemin, "w", encoding="utf-8") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(donnees, f, ensure_ascii=False, indent=2)
     logger.info("Flotte '%s' sauvegardée dans %s (%d véhicules).", flotte.nom, chemin, len(flotte))
 
@@ -77,8 +88,11 @@ def charger_flotte_json(chemin: str) -> Flotte:
     if not path.exists():
         raise DonneesInvalidesError(f"Fichier JSON introuvable : {chemin}")
 
-    with open(chemin, "r", encoding="utf-8") as f:
-        donnees = json.load(f)
+    with open(path, "r", encoding="utf-8") as f:
+        try:
+            donnees = json.load(f)
+        except json.JSONDecodeError as exc:
+            raise DonneesInvalidesError(f"Fichier JSON invalide ({chemin}) : {exc}") from exc
 
     flotte = Flotte(donnees.get("nom_flotte", "Flotte importée"))
     for d in donnees.get("vehicules", []):
@@ -96,7 +110,9 @@ def exporter_locations_csv(locations: List[Location], chemin: str,
         if (debut is None or loc.date_debut >= debut) and (fin is None or loc.date_debut <= fin)
     ]
 
-    with open(chemin, "w", newline="", encoding="utf-8") as f:
+    path = Path(chemin)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow([
             "id_location", "immatriculation", "client", "categorie_client",

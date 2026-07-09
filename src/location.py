@@ -50,6 +50,11 @@ class Location:
     def duree_prevue_jours(self) -> int:
         return max((self.date_fin_prevue - self.date_debut).days, 1)
 
+    def __repr__(self) -> str:
+        etat = "clôturée" if self.cloturee else "active"
+        return (f"Location({self.id_location}, {self.vehicule.immatriculation}, "
+                f"{self.client_nom}, {etat})")
+
 
 class GestionLocations:
     """Gère l'ensemble des locations : démarrage, retour, calcul de tarifs et pénalités."""
@@ -86,8 +91,15 @@ class GestionLocations:
         location = self._obtenir(id_location)
         if location.cloturee:
             raise DonneesInvalidesError(f"La location {id_location} est déjà clôturée.")
+        if date_retour < location.date_debut:
+            raise DonneesInvalidesError(
+                "La date de retour ne peut pas précéder la date de début de location."
+            )
 
         location.date_retour_reel = date_retour
+        # On mémorise le statut avant rouler(), car rouler() peut le faire
+        # passer à EN_MAINTENANCE si le seuil kilométrique est atteint.
+        statut_avant_retour = location.vehicule.statut
         location.vehicule.rouler(km_parcourus)
 
         tarif_jour = location.vehicule.calculer_tarif_jour(location.categorie_client)
@@ -96,7 +108,11 @@ class GestionLocations:
         jours_retard = max((date_retour - location.date_fin_prevue).days, 0)
         location.penalite = round(jours_retard * PENALITE_PAR_JOUR_RETARD, 2)
 
-        if location.vehicule.statut != StatutVehicule.EN_MAINTENANCE:
+        # On ne remet le véhicule DISPONIBLE que s'il était encore LOUE :
+        # s'il est passé EN_MAINTENANCE (via rouler()) ou a été mis
+        # HORS_SERVICE entre-temps, on ne doit pas écraser ce statut.
+        if statut_avant_retour == StatutVehicule.LOUE and \
+                location.vehicule.statut == StatutVehicule.LOUE:
             location.vehicule.statut = StatutVehicule.DISPONIBLE
         location.cloturee = True
 
@@ -123,4 +139,12 @@ class GestionLocations:
         return [
             loc for loc in self._locations.values()
             if debut <= loc.date_debut <= fin
+        ]
+
+    def locations_par_client(self, client_nom: str) -> List[Location]:
+        """Historique des locations (actives et clôturées) d'un client donné."""
+        nom = client_nom.strip().lower()
+        return [
+            loc for loc in self._locations.values()
+            if loc.client_nom.lower() == nom
         ]

@@ -24,11 +24,17 @@ class Flotte:
     les véhicules peuvent exister indépendamment de la Flotte)."""
 
     def __init__(self, nom: str) -> None:
-        self.nom = nom
+        if not nom or not nom.strip():
+            raise DonneesInvalidesError("Le nom de la flotte est obligatoire.")
+        self.nom = nom.strip()
         self._vehicules: Dict[str, VehiculeBase] = {}
 
     def ajouter_vehicule(self, vehicule: VehiculeBase) -> None:
         """Ajoute un véhicule déjà créé à la flotte."""
+        if not isinstance(vehicule, VehiculeBase):
+            raise DonneesInvalidesError(
+                "L'objet ajouté à la flotte doit être un VehiculeBase."
+            )
         if vehicule.immatriculation in self._vehicules:
             raise DonneesInvalidesError(
                 f"Un véhicule avec l'immatriculation {vehicule.immatriculation} existe déjà."
@@ -52,9 +58,17 @@ class Flotte:
         return list(self._vehicules.values())
 
     def vehicules_disponibles(self, a_date: Optional[date] = None) -> List[VehiculeBase]:
-        """Retourne les véhicules DISPONIBLES. Le paramètre a_date est conservé
-        pour compatibilité avec la couche locations (statut recalculé en croisant
-        avec les locations actives à cette date, voir rapports.py)."""
+        """Retourne les véhicules DISPONIBLES selon leur statut courant.
+
+        Le paramètre a_date n'est pas encore utilisé ici : croiser avec les
+        locations actives à une date précise nécessiterait d'importer
+        GestionLocations, ce qui créerait un cycle d'import avec location.py
+        (qui importe déjà les types de vehicules.py). C'est
+        database.vehicules_disponibles_a_date() qui fait ce calcul précis en
+        croisant les deux tables SQL. Le paramètre est conservé ici pour que
+        la signature reste stable si ce croisement est un jour rapatrié en
+        mémoire.
+        """
         return [v for v in self._vehicules.values() if v.statut == StatutVehicule.DISPONIBLE]
 
     def vehicules_necessitant_entretien(self) -> List[VehiculeBase]:
@@ -69,3 +83,12 @@ class Flotte:
 
     def __len__(self) -> int:
         return len(self._vehicules)
+
+    def __contains__(self, immatriculation: str) -> bool:
+        return immatriculation in self._vehicules
+
+    def __iter__(self):
+        return iter(self._vehicules.values())
+
+    def __repr__(self) -> str:
+        return f"Flotte(nom={self.nom!r}, {len(self._vehicules)} véhicule(s))"
